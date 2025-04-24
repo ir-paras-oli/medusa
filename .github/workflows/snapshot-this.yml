@@ -1,9 +1,9 @@
-name: JavaScript Project
+name: medusa application build     
 
 on:
   push:
     branches:
-      - develop  # or specify the branches you want to trigger this on
+      - develop
   workflow_dispatch:
   issue_comment:
     types:
@@ -29,46 +29,45 @@ jobs:
         with:
           script: |
             try {
-              // Add a rocket reaction to the comment
               await github.rest.reactions.createForIssueComment({
                 ...context.repo,
                 comment_id: context.payload.comment.id,
                 content: 'rocket',
-              })
+              });
 
-              // Only allow comment creators who have "write" permissions to repo
               const actorPermission = (await github.rest.repos.getCollaboratorPermissionLevel({
                 ...context.repo,
                 username: context.actor
-              })).data.permission
-              const isPermitted = ['write', 'admin'].includes(actorPermission)
+              })).data.permission;
+
+              const isPermitted = ['write', 'admin'].includes(actorPermission);
               if (!isPermitted) {
-                const errorMessage = 'Only users with write permission to the respository can run /snapshot-this'
+                const errorMessage = 'Only users with write permission to the repository can run /snapshot-this';
                 await github.rest.issues.createComment({
                   ...context.repo,
                   issue_number: context.issue.number,
                   body: errorMessage,
-                })
-                core.setFailed(errorMessage)
+                });
+                core.setFailed(errorMessage);
                 return;
               }
 
               const pullRequest = await github.rest.pulls.get({
                 ...context.repo,
                 pull_number: context.issue.number,
-              })
-              // Pull request from fork
+              });
+
               if (context.payload.repository.full_name !== pullRequest.data.head.repo.full_name) {
-                const errorMessage = '`/snapshot-this` is not supported on pull requests from forked repositories.'
+                const errorMessage = '`/snapshot-this` is not supported on pull requests from forked repositories.';
                 await github.rest.issues.createComment({
                   ...context.repo,
                   issue_number: context.issue.number,
                   body: errorMessage,
-                })
-                core.setFailed(errorMessage)
+                });
+                core.setFailed(errorMessage);
               }
             } catch (err) {
-              core.setFailed(`Request failed with error ${err}`)
+              core.setFailed(`Request failed with error ${err}`);
             }
 
       - name: Checkout pull request branch
@@ -85,8 +84,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: '18'
           cache: "yarn"
+
+      - name: Enable Corepack and install Yarn 3.2.1
+        run: |
+          corepack enable
+          yarn set version 3.2.1
+          yarn -v
 
       - name: Install dependencies
         uses: ./.github/actions/cache-deps
@@ -102,7 +107,7 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cat << EOF > "$HOME/.npmrc"
-            //registry.npmjs.org/:_authToken=$NPM_TOKEN
+          //registry.npmjs.org/:_authToken=$NPM_TOKEN
           EOF
 
       - name: Create and publish snapshot release
@@ -111,13 +116,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           script: |
-            await exec.exec('yarn run changeset version --snapshot snapshot')
-            const {stdout} = await exec.getExecOutput('yarn run release:snapshot')
-            const newTags = Array
-              .from(stdout.matchAll(/New tag:\s+([^\s\n]+)/g))
-              .map(([_, tag]) => tag)
+            await exec.exec('yarn run changeset version --snapshot snapshot');
+            const { stdout } = await exec.getExecOutput('yarn run release:snapshot');
+            const newTags = Array.from(stdout.matchAll(/New tag:\s+([^\s\n]+)/g)).map(([_, tag]) => tag);
             if (newTags.length) {
-              const multiple = newTags.length > 1
+              const multiple = newTags.length > 1;
               const body = (
                 `#### :rocket: A snapshot release has been made for this PR\n\n` +
                 `Test the snapshot${multiple ? 's' : ''} by updating your \`package.json\` ` +
@@ -128,47 +131,51 @@ jobs:
                   '```'
                 )).join('\n') +
                 `\n\n> Latest commit: ${context.sha}`
+              );
 
-              )
               await github.rest.issues.createComment({
                 ...context.repo,
                 issue_number: context.issue.number,
                 body,
-              })
+              });
+
               await github.rest.reactions.createForIssueComment({
                 ...context.repo,
                 comment_id: context.payload.comment.id,
                 content: 'hooray',
-              })
+              });
             }
 
   medusa-build:
     runs-on: ubuntu-latest
     name: Run build
     steps:
-    - name: Setup PSE
-      uses: invisirisk/pse-action@latest
-      with:
-        api_url: "https://app.invisirisk.com"
-        app_token: ${{ secrets.IR_API_KEY }}
-        job_status: ${{job.status}}
+      - name: Setup PSE
+        uses: invisirisk/pse-action@latest
+        with:
+          api_url: "https://app.invisirisk.com"
+          app_token: ${{ secrets.IR_API_KEY }}
+          job_status: ${{ job.status }}
 
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '20'
-        cache: 'yarn'  # Enables caching for faster installs
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'yarn'
 
-    - name: Install Yarn
-      run: npm install -g yarn
+      - name: Enable Corepack and install Yarn 3.2.1
+        run: |
+          corepack enable
+          yarn set version 3.2.1
+          yarn -v
 
-    - name: Install dependencies with Yarn
-      run: yarn install --immutable
+      - name: Install dependencies with Yarn
+        run: yarn install --immutable
 
-    - name: Cleanup PSE
-      if: always()
-      uses: invisirisk/pse-action@dev-test
-      with:
-        cleanup: "true"
+      - name: Cleanup PSE
+        if: always()
+        uses: invisirisk/pse-action@dev-test
+        with:
+          cleanup: "true"
