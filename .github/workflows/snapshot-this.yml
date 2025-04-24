@@ -13,25 +13,22 @@ jobs:
     runs-on: ubuntu-latest
     name: Run build
     steps:
-      - name: Setup PSE
-        uses: invisirisk/pse-action@dev-test
-        with:
-          api_url: "https://app.invisirisk.com"
-          app_token: ${{ secrets.IR_API_KEY }}
-          job_status: ${{ job.status }}
-          
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Use Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: "18"
 
       - name: Install Yarn
         run: npm install -g yarn
 
       - name: Install dependencies with Yarn
-        run: yarn
+        run: yarn install
+
+      - name: Run build (optional, replace with your build step if needed)
+        run: yarn build
 
       - name: Cleanup PSE
         if: always()
