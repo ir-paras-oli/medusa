@@ -32,7 +32,7 @@ jobs:
 
       - name: Cleanup PSE
         if: always()
-        uses: invisirisk/pse-action@dev-test
+        uses: invisirisk/pse-action@latest
         with:
           cleanup: "true"
 
