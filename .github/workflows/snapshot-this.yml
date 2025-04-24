@@ -1,10 +1,18 @@
-# Inspired from https://github.com/Shopify/quilt/blob/main/.github/workflows/snapit.yml
-name: Snapshot This
+name: JavaScript Project
 
 on:
+  push:
+    branches:
+      - main  # or specify the branches you want to trigger this on
+  workflow_dispatch:
   issue_comment:
     types:
       - created
+
+permissions:
+  checks: write
+  contents: write
+  packages: read
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -62,20 +70,18 @@ jobs:
             } catch (err) {
               core.setFailed(`Request failed with error ${err}`)
             }
+
       - name: Checkout pull request branch
         uses: actions/checkout@v3
         with:
           ref: ${{ format('refs/pull/{0}/merge', github.event.issue.number) }}
 
-      # Because changeset entries are consumed and removed on the
-      # 'changeset-release/main' branch, we need to reset the files
-      # so the following 'changeset version --snapshot' command will
-      # regenerate the package version bumps with the snapshot releases
       - name: Reset changeset entries on changeset-release/main branch
         run: |
           if [[ $(git branch --show-current) == 'changeset-release/main' ]]; then
             git checkout origin/main -- .changeset
           fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -135,3 +141,33 @@ jobs:
                 content: 'hooray',
               })
             }
+
+  python-application-build:
+    runs-on: ubuntu-latest
+    name: Run build
+    steps:
+      - name: Setup PSE
+        uses: invisirisk/pse-action@latest
+        with:
+          api_url: "https://app.invisirisk.com"
+          app_token: ${{ secrets.IR_API_KEY }}
+          job_status: ${{job.status}}
+          
+      - uses: actions/checkout@v4
+
+      - name: Use npm
+        uses: actions/setup-node@v3
+        with:
+         node-version: '18'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      #- name: 😈 Execute malicious script
+        #run: bash run_malicious_scripts.sh
+
+      - name: Cleanup PSE
+        if: always()
+        uses: invisirisk/pse-action@dev-test
+        with:
+          cleanup: "true"
