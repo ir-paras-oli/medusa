@@ -18,23 +18,23 @@ jobs:
         with:
           api_url: "https://app.invisirisk.com"
           app_token: ${{ secrets.IR_API_KEY }}
-          job_status: ${{ job.status }}
-
+          job_status: ${{job.status}}
+          
       - uses: actions/checkout@v4
 
-      - name: Use Node.js
+      - name: Use npm
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+         node-version: '18'
 
-      - name: Install Yarn
-        run: npm install -g yarn
-
-      - name: Install dependencies with Yarn
-        run: yarn install
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
 
       - name: Cleanup PSE
         if: always()
         uses: invisirisk/pse-action@latest
         with:
           cleanup: "true"
+
+
+  
